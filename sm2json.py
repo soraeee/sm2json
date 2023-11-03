@@ -68,7 +68,7 @@ def getChartData(simfileDir: any):
 		}
 	
 		# Checking for mods and gimmicks
-		hasmods = True if (sim.fgchanges != None) | (sim.attacks != None) else False
+		#hasmods = True if (sim.fgchanges != None) | (sim.attacks != None) else False
 
 		# Parse individual difficulties
 		for chart_ in sim.charts:
@@ -79,11 +79,14 @@ def getChartData(simfileDir: any):
 			notecount = count_steps(notedata)
 			
 			# Checking for ssc specific fields
-			credit = chart.credit if chart.credit != None else ""
-			chartname = chart.chartname if chart.chartname != None else ""
+			credit = ""
+			chartname = ""
+			if sim == SSCSimfile:
+				credit = chart.credit
+				chartname = chart.chartname
 
 			# Checking for difficulty-specific mods
-			if chart.attacks != None: hasmods = True
+			#if chart.attacks != None: hasmods = True
 
 			# Difficulty specific metadata
 			diff = {
@@ -150,6 +153,7 @@ def main():
 		f.write(chartJSON)
 		f.close()
 
+	# "Exception" "handler"
 	except:
 		if len(packPath) == 0:
 			raise Exception("Must specify a path to a simfile pack")
