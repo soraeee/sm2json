@@ -27,7 +27,7 @@ def getChartData(simfileDir: any):
 	with simfile.mutate(path) as sim:
 		# Get DisplayBPM
 		disp = displaybpm(sim)
-		formattedDisplayBPM = [(str)(disp.min), (str)(disp.max)]
+		formattedDisplayBPM = [float(disp.min), float(disp.max)]
 
 		# Convert banner/jacket names and copy them to the output folder
 		# ash you are saving my goddamn life right now, i was about to do some dumbass pathlib crap to find graphics
@@ -93,7 +93,7 @@ def getChartData(simfileDir: any):
 
 				"slot": chart.difficulty, # Difficulty slot of the chart - Challenge, Hard, Medium, etc 
 				"type": chart.stepstype, # Steps type - Singles, Doubles, etc
-				"difficulty": chart.meter, # The difficulty number assigned to the chart. Always 100% accurate and never subject to community debate 
+				"difficulty": int(chart.meter), # The difficulty number assigned to the chart. Always 100% accurate and never subject to community debate 
 				
 				"notecount": notecount, # Number of notes, as specified by StepMania ingame
 
