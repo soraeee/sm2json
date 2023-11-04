@@ -8,9 +8,10 @@ from simfile.notes import NoteData
 from simfile.notes.count import *
 from simfile.timing.displaybpm import displaybpm
 import json
+import hashlib
+from wand.image import Image
 
 # Things that I probably want to do
-# For relative path gfx - if the banner is a duplicate, don't copy the banner to save space (TPE style, fallback banners, etc)
 # Make "hasMods" field parse correctly
 
 cwd = os.getcwd()
@@ -18,8 +19,13 @@ cwd = os.getcwd()
 chartlist = {
 	"packName": "", 
 	"packBanner": "",
-	"charts": []}
+	"charts": []
+}
+imageHashes = []
 songIndex = 0
+
+def getHash(filename):
+	return hashlib.md5(open(filename,'rb').read()).hexdigest()[:10]
 
 def getChartData(simfileDir: any):
 	path = simfileDir.simfile_path
@@ -28,42 +34,54 @@ def getChartData(simfileDir: any):
 		# Get DisplayBPM
 		disp = displaybpm(sim)
 		formattedDisplayBPM = [float(disp.min), float(disp.max)]
-
-		# Convert banner/jacket names and copy them to the output folder
-		# ash you are saving my goddamn life right now, i was about to do some dumbass pathlib crap to find graphics
-		bnpath = simfileDir.assets().banner
+		
+		# Create a bg/jacket/banner to use as a graphic
+		# A background is prefered, but fallback to jacket or bn if not found
+		# A hash will be used to check for duplicate graphics (probably not very efficient?)
+		bgpath = simfileDir.assets().background
 		jkpath = simfileDir.assets().jacket
-		bnpathFinal = ""
-		jkpathFinal = ""
-		# In case some fucker has .jpg banners, i do not want to assume everyone uses .png and hardcode this lol
-		if bnpath != None:
-			bnext = bnpath.split(".")[-1]
-			shutil.copyfile(bnpath, f"./output/bn-{songIndex}.{bnext}")
-			bnpathFinal = f"./bn-{songIndex}.{bnext}"
-		if jkpath != None:
-			jkext = jkpath.split(".")[-1]
-			shutil.copyfile(jkpath, f"./output/jk-{songIndex}.{jkext}")
-			jkpathFinal = f"./jk-{songIndex}.{bnext}"
+		bnpath = simfileDir.assets().banner
+		gfxPath = ""
+		gfxHash = ""
+		if bgpath != None:
+			gfxPath = bgpath
+			gfxHash = getHash(bgpath)
+		elif jkpath != None:
+			gfxPath = jkpath
+			gfxHash = getHash(jkpath)
+		elif bnpath != None:
+			gfxPath = bnpath
+			gfxHash = getHash(bnpath)
+		# We use Wand (ImageMagick) to make a jpeg
+		gfxRendered = f"./{gfxHash}.jpg"
+		if gfxHash not in imageHashes:
+			imageHashes.append(gfxHash)
+			with Image(filename=gfxPath) as img:
+				w = img.width
+				h = img.height
+				if (w < 900) or (h < 100):
+					factor = max(900/w, 100/h)
+					img.resize(int(factor*w), int(factor*h))
+					w = img.width
+					h = img.height
+				img.blur(radius=0, sigma=6)
+				img.crop(int((w-900)/2), int((h-100)/2), width=900, height=100)
+				print(int((w-900)/2), int((h-100)/2))
+				img.format = 'jpeg'
+				img.save(filename=f"./output/{gfxHash}.jpg")
 
 		# Create a dict for the metadata to insert into the array that will be converted to JSON later
 		# Definitely the most efficient way to do this, i am highly intelligent :clueless:
 		meta = {
 			"sid": songIndex, # Song ID
-
 			"title": sim.title, # Song title
 			"titletranslit": sim.titletranslit, # Transliterated title
 			"subtitle": sim.subtitle, # Subtitle
 			"subtitletranslit": sim.subtitletranslit, # Transliterated subtitle
 			"artist": sim.artist, # Song artist
 			"artisttranslit": sim.artisttranslit, # Transliterated artist
-			
 			"displaybpm": formattedDisplayBPM, # Song's display BPM
-
-			"bnpath": bnpathFinal, # Path to banner in output folder
-			"jkpath": jkpathFinal, # Path to jacket in output folder
-			# We skip backgrounds because that's more filesize and also I can't think of a use case where you would want bg over bn x_x
-			# (maybe a bad idea)
-
+			"gfxPath": gfxRendered, # Path to gfx
 			"difficulties": []
 		}
 	
