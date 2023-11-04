@@ -44,7 +44,7 @@ def getChartData(simfileDir: any):
 			jkext = jkpath.split(".")[-1]
 			shutil.copyfile(jkpath, f"./output/jk-{songIndex}.{jkext}")
 			jkpathFinal = f"./jk-{songIndex}.{bnext}"
-
+   
 		# Create a dict for the metadata to insert into the array that will be converted to JSON later
 		# Definitely the most efficient way to do this, i am highly intelligent :clueless:
 		meta = {
@@ -85,8 +85,11 @@ def getChartData(simfileDir: any):
 				credit = chart.credit
 				chartname = chart.chartname
 
-			# Checking for difficulty-specific mods
-			#if chart.attacks != None: hasmods = True
+			# Checking for difficulty specific mods
+			hasmods = False
+			for attack in [sim.attacks, chart.attacks]:
+				if attack is not None and not attack.isspace():
+					hasmods = True
 
 			# Difficulty specific metadata
 			diff = {
@@ -100,6 +103,7 @@ def getChartData(simfileDir: any):
 				"description": chart.description, # Chart's description field
 				"credit": credit, # Chart specific credit - ssc only
 				"chartname": chartname, # Chart's chartname - ssc only
+				"mods" : hasmods,
 
 				###
 				#	Ideally, I'd like to get the "hasmods" field working, but right now it's just not parsing correctly lol
