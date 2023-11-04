@@ -66,7 +66,6 @@ def getChartData(simfileDir: any):
 					h = img.height
 				img.blur(radius=0, sigma=6)
 				img.crop(int((w-900)/2), int((h-100)/2), width=900, height=100)
-				print(int((w-900)/2), int((h-100)/2))
 				img.format = 'jpeg'
 				img.save(filename=f"./output/{gfxHash}.jpg")
 
