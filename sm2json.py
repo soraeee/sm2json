@@ -87,9 +87,14 @@ def getChartData(simfileDir: any):
 
 			# Checking for difficulty specific mods
 			hasmods = False
-			for attack in [sim.attacks, chart.attacks]:
-				if attack is not None and not attack.isspace():
-					hasmods = True
+			# fgchanges check
+			if sim.fgchanges is not None and not (sim.fgchanges.isspace() or sim.fgchanges == ""):
+				hasmods = True
+			# attacks check
+			else:
+				for attack in [sim.attacks, chart.attacks]:
+					if attack is not None and not attack.isspace():
+						hasmods = True
 
 			# Difficulty specific metadata
 			diff = {
