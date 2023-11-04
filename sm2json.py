@@ -104,8 +104,16 @@ def getChartData(simfileDir: any, minify):
 				credit = chart.credit
 				chartname = chart.chartname
 
-			# Checking for difficulty-specific mods
-			#if chart.attacks != None: hasmods = True
+			# Checking for difficulty specific mods
+			hasmods = False
+			# fgchanges check
+			if sim.fgchanges is not None and not (sim.fgchanges.isspace() or sim.fgchanges == ""):
+				hasmods = True
+			# attacks check
+			else:
+				for attack in [sim.attacks, chart.attacks]:
+					if attack is not None and not attack.isspace():
+						hasmods = True
 
 			# Difficulty specific metadata
 			diff = {
@@ -119,6 +127,7 @@ def getChartData(simfileDir: any, minify):
 				"description": chart.description, # Chart's description field
 				"credit": credit, # Chart specific credit - ssc only
 				"chartname": chartname, # Chart's chartname - ssc only
+				"mods" : hasmods,
 
 				###
 				#	Ideally, I'd like to get the "hasmods" field working, but right now it's just not parsing correctly lol
