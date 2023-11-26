@@ -31,6 +31,7 @@ def getChartData(simfileDir: any, minify):
 	path = simfileDir.simfile_path
 
 	with simfile.mutate(path) as sim:
+		print(f"Handling {sim.title}")
 		# Get DisplayBPM
 		disp = displaybpm(sim)
 		formattedDisplayBPM = [float(disp.min), float(disp.max)]
@@ -52,7 +53,11 @@ def getChartData(simfileDir: any, minify):
 		elif (bgpath != None) and (minify):
 			gfxPath = bgpath
 			gfxHash = getHash(bgpath)
+		
+		
 		# We use Wand (ImageMagick) to make a jpeg
+		if not os.path.exists(str(bnpath)):
+			raise Exception(f"Banner does not exist for {sim.title}, or the #BANNER attribute is incorrect")
 		gfxRendered = f"{gfxHash}.jpg"
 		if gfxHash not in imageHashes:
 			imageHashes.append(gfxHash)
@@ -111,9 +116,14 @@ def getChartData(simfileDir: any, minify):
 				hasmods = True
 			# attacks check
 			else:
-				for attack in [sim.attacks, chart.attacks]:
-					if attack is not None and not attack.isspace():
-						hasmods = True
+				if sim == SSCSimfile:
+					for attack in [sim.attacks, chart.attacks]:
+						if attack is not None and not attack.isspace():
+							hasmods = True
+				else: # jank fix so that this script doesn't explode on the eclipse 2023 pack, lol
+					for attack in [sim.attacks]:
+						if attack is not None and not attack.isspace():
+							hasmods = True
 
 			# Difficulty specific metadata
 			diff = {
