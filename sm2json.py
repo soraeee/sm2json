@@ -6,6 +6,7 @@ from simfile.ssc import SSCSimfile
 from simfile.types import Chart, Charts, Simfile
 from simfile.notes import NoteData
 from simfile.notes.count import *
+from simfile.notes.group import OrphanedNotes
 from simfile.timing.displaybpm import displaybpm
 import json
 import hashlib
@@ -27,9 +28,10 @@ songIndex = 0
 def getHash(filename):
 	return hashlib.md5(open(filename,'rb').read()).hexdigest()[:10]
 
-def getChartData(simfileDir: any, minify):
+def getChartData(simfileDir: any, minify, outputBanners):
 	path = simfileDir.simfile_path
-
+	folderName = path.split("\\")
+	
 	with simfile.mutate(path) as sim:
 		print(f"Handling {sim.title}")
 		# Get DisplayBPM
@@ -54,27 +56,28 @@ def getChartData(simfileDir: any, minify):
 			gfxPath = bgpath
 			gfxHash = getHash(bgpath)
 		
-		
+		gfxRendered = ""
 		# We use Wand (ImageMagick) to make a jpeg
-		if not os.path.exists(str(bnpath)):
-			raise Exception(f"Banner does not exist for {sim.title}, or the #BANNER attribute is incorrect")
-		gfxRendered = f"{gfxHash}.jpg"
-		if gfxHash not in imageHashes:
-			imageHashes.append(gfxHash)
-			with Image(filename=gfxPath) as img:
-				img = Image(image=img.sequence[0]) if len(img.sequence) > 1 else img
-				if minify == True:
-					w = img.width
-					h = img.height
-					if (w < 900) or (h < 100):
-						factor = max(900/w, 100/h)
-						img.resize(int(factor*w), int(factor*h))
+		if outputBanners:
+			if not os.path.exists(str(bnpath)):
+				raise Exception(f"Banner does not exist for {sim.title}, or the #BANNER attribute is incorrect")
+			gfxRendered = f"{gfxHash}.jpg"
+			if gfxHash not in imageHashes:
+				imageHashes.append(gfxHash)
+				with Image(filename=gfxPath) as img:
+					img = Image(image=img.sequence[0]) if len(img.sequence) > 1 else img
+					if minify == True:
 						w = img.width
 						h = img.height
-					img.blur(radius=0, sigma=4.5)
-					img.crop(int((w-900)/2), int((h-100)/2), width=900, height=100)
-				img.format = 'jpeg'
-				img.save(filename=f"./output/{gfxHash}.jpg")
+						if (w < 900) or (h < 100):
+							factor = max(900/w, 100/h)
+							img.resize(int(factor*w), int(factor*h))
+							w = img.width
+							h = img.height
+						img.blur(radius=0, sigma=4.5)
+						img.crop(int((w-900)/2), int((h-100)/2), width=900, height=100)
+					img.format = 'jpeg'
+					img.save(filename=f"./output/{gfxHash}.jpg")
 
 		# Create a dict for the metadata to insert into the array that will be converted to JSON later
 		# Definitely the most efficient way to do this, i am highly intelligent :clueless:
@@ -88,6 +91,7 @@ def getChartData(simfileDir: any, minify):
 			"artisttranslit": sim.artisttranslit, # Transliterated artist
 			"displaybpm": formattedDisplayBPM, # Song's display BPM
 			"gfxPath": gfxRendered, # Path to gfx
+			"folderName": folderName[-2], # Name of the folder that the .sm/.ssc is in
 			"difficulties": []
 		}
 	
@@ -101,11 +105,13 @@ def getChartData(simfileDir: any, minify):
 			# Count number of notes
 			notedata = NoteData(chart)
 			notecount = count_steps(notedata)
+			holdsrollscount = count_holds(notedata, orphaned_head = OrphanedNotes.KEEP_ORPHAN, orphaned_tail = OrphanedNotes.DROP_ORPHAN) + count_rolls(notedata, orphaned_head = OrphanedNotes.KEEP_ORPHAN, orphaned_tail = OrphanedNotes.DROP_ORPHAN)
+			minescount = count_mines(notedata)
 			
 			# Checking for ssc specific fields
 			credit = ""
 			chartname = ""
-			if sim == SSCSimfile:
+			if isinstance(sim, simfile.ssc.SSCSimfile):
 				credit = chart.credit
 				chartname = chart.chartname
 
@@ -132,7 +138,9 @@ def getChartData(simfileDir: any, minify):
 				"type": chart.stepstype, # Steps type - Singles, Doubles, etc
 				"difficulty": int(chart.meter), # The difficulty number assigned to the chart. Always 100% accurate and never subject to community debate 
 				
-				"notecount": notecount, # Number of notes, as specified by StepMania ingame
+				"notecount": notecount, # Number of notes, as specified by StepMania ingame - jumps/hands/quads are all 1 note
+				"holdsrollscount": holdsrollscount, # Number of holds and rolls
+				"minescount": minescount, # Number of mines
 
 				"description": chart.description, # Chart's description field
 				"credit": credit, # Chart specific credit - ssc only
@@ -161,8 +169,10 @@ def main():
 	args = sys.argv[1:]
 	packPath = args[0]
 	minify = False
+	outputBanners = False
 	if len(args) > 1:
-		minify = (args[1] == '-m') or (args[1] == '--minify')
+		minify = (args.__contains__('-m')) or (args.__contains__('--minify'))
+		outputBanners = (args.__contains__('-ob')) or (args.__contains__('--output-banners'))
 
 	# Make an output folder in the current working directory
 	if not os.path.exists(f"{cwd}/output"):
@@ -184,7 +194,7 @@ def main():
 		
 		# Parse simfiles for metadata - prioritize ssc
 		for simfileDir in simPack.simfile_dirs():
-			getChartData(simfileDir, minify)
+			getChartData(simfileDir, minify, outputBanners)
 			songIndex += 1
 
 		# Convert the resulting chart list to a JSON string
